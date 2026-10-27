@@ -1,0 +1,293 @@
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Виртуальный генератор сигналов — лабораторная №4</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;padding:20px;background:#111923;color:#eef5ff;font:15px Arial,sans-serif}
+main{max-width:1100px;margin:auto}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+h1{font-size:25px;margin:0}
+.brand{font-weight:bold;color:#58d4ff;letter-spacing:2px}
+.layout{display:grid;grid-template-columns:1.4fr 1fr;gap:16px}
+.panel{background:#1d2938;border:1px solid #405269;border-radius:12px;padding:16px;min-width:0}
+h2{font-size:17px;margin:0 0 14px}
+.screen{background:#05100d;border:3px solid #586b7d;border-radius:8px;padding:8px}
+canvas{display:block;width:100%;height:310px}
+.readout{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px}
+.readout div{background:#101a24;border-radius:7px;padding:11px}
+.readout span{display:block;color:#aebdcd;font-size:12px;margin-bottom:6px}
+.readout strong{color:#85ff9c;font-size:18px;overflow-wrap:anywhere}
+.control{margin:16px 0}
+.control label{display:flex;justify-content:space-between;gap:8px;margin-bottom:8px;font-weight:bold}
+input,select,button{width:100%;padding:10px;border-radius:6px;border:1px solid #52677e;background:#101a24;color:white;font-size:15px}
+input[type=range]{padding:0;accent-color:#55c8ff}
+button{cursor:pointer;font-weight:bold}
+#output.on{background:#176b39;border-color:#47e27e}
+#output.off{background:#812d38;border-color:#ff7180}
+#reset{margin-top:9px}
+.status{margin-top:12px;font-weight:bold}
+.note{font-size:13px;line-height:1.5;color:#b7c6d5}
+.lab{margin-top:16px}
+.lab li{margin:8px 0}
+@media(max-width:760px){body{padding:10px}.layout{grid-template-columns:1fr}canvas{height:240px}h1{font-size:21px}}
+</style>
+</head>
+<body>
+<main>
+<header>
+<h1>Виртуальный генератор сигналов</h1>
+<div class="brand">FUNCTION GENERATOR</div>
+</header>
+
+<div class="layout">
+<section class="panel">
+<h2>Экран генератора · Осциллограмма</h2>
+<div class="screen">
+<canvas id="scope" width="800" height="360"></canvas>
+</div>
+<div class="readout">
+<div><span>Форма сигнала</span><strong id="rShape">Синусоидальная</strong></div>
+<div><span>Частота</span><strong id="rFreq">1 000 Hz</strong></div>
+<div><span>Период</span><strong id="rPeriod">1 ms</strong></div>
+<div><span>Амплитуда</span><strong id="rAmp">2 V</strong></div>
+<div><span>Размах Vpp</span><strong id="rVpp">4 V</strong></div>
+<div><span>Смещение Offset</span><strong id="rOffset">0 V</strong></div>
+</div>
+<p class="status" id="status">● OUTPUT: ON</p>
+<p class="note">Осциллограмма показывает три периода сигнала. Вертикальная ось — напряжение, горизонтальная — время. Это учебная модель, а не официальное ПО SIGLENT.</p>
+</section>
+
+<section class="panel">
+<h2>Передняя панель · Управление</h2>
+
+<div class="control">
+<label for="shape">Форма сигнала</label>
+<select id="shape">
+<option value="sine">Sine — синусоидальный</option>
+<option value="square">Square — прямоугольный</option>
+<option value="triangle">Triangle — треугольный</option>
+<option value="pulse">Pulse — импульсный</option>
+</select>
+</div>
+
+<div class="control">
+<label for="freq">Частота, Hz <span id="freqVal">1000</span></label>
+<input id="freq" type="range" min="1" max="10000" step="1" value="1000">
+<input id="freqNum" type="number" min="1" max="10000" step="1" value="1000">
+</div>
+
+<div class="control">
+<label for="amp">Амплитуда, V <span id="ampVal">2.0</span></label>
+<input id="amp" type="range" min="0.1" max="10" step="0.1" value="2">
+<input id="ampNum" type="number" min="0.1" max="10" step="0.1" value="2">
+</div>
+
+<div class="control">
+<label for="offset">Смещение Offset, V <span id="offsetVal">0.0</span></label>
+<input id="offset" type="range" min="-10" max="10" step="0.1" value="0">
+<input id="offsetNum" type="number" min="-10" max="10" step="0.1" value="0">
+</div>
+
+<div class="control">
+<label for="duty">Длительность импульса, % <span id="dutyVal">25</span></label>
+<input id="duty" type="range" min="5" max="95" step="1" value="25">
+</div>
+
+<button id="output" class="on">OUTPUT: ON</button>
+<button id="reset">Сбросить настройки</button>
+<p class="note">Диапазон частоты: 1–10 000 Hz. Амплитуда — пиковое значение относительно Offset. Размах идеального сигнала: Vpp = 2 × амплитуда.</p>
+</section>
+</div>
+
+<section class="panel lab">
+<h2>Лабораторная работа № 4 · Задания студентам</h2>
+<ol>
+<li>Установите синусоидальный сигнал частотой 500 Hz. Запишите частоту и период.</li>
+<li>Увеличьте частоту до 1000 Hz. Сравните период.</li>
+<li>Измените амплитуду с 2 V на 4 V. Рассчитайте размах Vpp.</li>
+<li>Установите Offset = +2 V, затем −2 V. Опишите смещение сигнала.</li>
+<li>Выберите прямоугольный, треугольный и импульсный сигналы. Сравните формы.</li>
+<li>Нажмите OUTPUT OFF. Опишите, что произошло с экраном.</li>
+</ol>
+</section>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const canvas = $("scope");
+const ctx = canvas.getContext("2d");
+let enabled = true;
+
+const names = {
+  sine: "Синусоидальная",
+  square: "Прямоугольная",
+  triangle: "Треугольная",
+  pulse: "Импульсная"
+};
+
+function read() {
+  return {
+    shape: $("shape").value,
+    f: Number($("freq").value),
+    a: Number($("amp").value),
+    o: Number($("offset").value),
+    duty: Number($("duty").value)
+  };
+}
+
+function fmt(n) {
+  return Number(n.toFixed(3)).toLocaleString("ru-RU");
+}
+
+function update() {
+  const s = read();
+  $("freqVal").textContent = s.f;
+  $("ampVal").textContent = s.a.toFixed(1);
+  $("offsetVal").textContent = s.o.toFixed(1);
+  $("dutyVal").textContent = s.duty;
+  $("rShape").textContent = names[s.shape];
+  $("rFreq").textContent = fmt(s.f) + " Hz";
+
+  const period = 1 / s.f;
+  $("rPeriod").textContent = period >= 0.001
+    ? fmt(period * 1000) + " ms"
+    : fmt(period * 1000000) + " µs";
+
+  $("rAmp").textContent = fmt(s.a) + " V";
+  $("rVpp").textContent = fmt(2 * s.a) + " V";
+  $("rOffset").textContent = fmt(s.o) + " V";
+  $("status").textContent = enabled ? "● OUTPUT: ON" : "○ OUTPUT: OFF";
+  draw(s);
+}
+
+function draw(s) {
+  const w = canvas.width, h = canvas.height;
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = "#05100d";
+  ctx.fillRect(0, 0, w, h);
+
+  const mid = h / 2;
+  const pxPerVolt = 22.5;
+  const centerY = mid - s.o * pxPerVolt;
+
+  // Сетка экрана
+  for (let x = 0; x <= w; x += w / 10) {
+    ctx.strokeStyle = "#173a31";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, h);
+    ctx.stroke();
+  }
+
+  for (let y = 0; y <= h; y += h / 8) {
+    ctx.strokeStyle = Math.abs(y - mid) < 1 ? "#3d7763" : "#173a31";
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(w, y);
+    ctx.stroke();
+  }
+
+  // Нулевая линия
+  ctx.setLineDash([5, 5]);
+  ctx.strokeStyle = "#829b91";
+  ctx.beginPath();
+  ctx.moveTo(0, mid);
+  ctx.lineTo(w, mid);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.fillStyle = "#a7c9bb";
+  ctx.font = "14px Arial";
+  ctx.fillText("0 V", 8, mid - 7);
+  ctx.fillText("V", 8, 18);
+
+  if (!enabled) {
+    ctx.fillStyle = "#ff9b9b";
+    ctx.font = "bold 24px Arial";
+    ctx.fillText("OUTPUT OFF", w / 2 - 75, 40);
+    return;
+  }
+
+  const cycles = 3;
+  const amplitudePx = s.a * pxPerVolt;
+
+  function valueAt(t) {
+    const p = ((t % 1) + 1) % 1;
+    if (s.shape === "sine") return Math.sin(2 * Math.PI * p);
+    if (s.shape === "square") return p < 0.5 ? 1 : -1;
+    if (s.shape === "triangle") return 1 - 4 * Math.abs(p - 0.5);
+    return p < s.duty / 100 ? 1 : -1;
+  }
+
+  ctx.beginPath();
+  ctx.strokeStyle = "#7dff9b";
+  ctx.lineWidth = 2.5;
+
+  for (let x = 0; x < w; x++) {
+    const t = x / w * cycles;
+    const y = centerY - valueAt(t) * amplitudePx;
+    if (x === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+
+  ctx.stroke();
+  ctx.fillStyle = "#b7f7ca";
+  ctx.font = "13px Arial";
+  ctx.fillText("Offset: " + fmt(s.o) + " V", w - 150, 20);
+}
+
+function connect(rangeId, numberId) {
+  const range = $(rangeId);
+  const number = $(numberId);
+
+  range.addEventListener("input", () => {
+    number.value = range.value;
+    update();
+  });
+
+  number.addEventListener("change", () => {
+    let n = Number(number.value);
+    if (!Number.isFinite(n)) n = Number(range.value);
+    n = Math.max(Number(range.min), Math.min(Number(range.max), n));
+    n = Math.round(n * 10) / 10;
+    range.value = n;
+    number.value = n;
+    update();
+  });
+}
+
+connect("freq", "freqNum");
+connect("amp", "ampNum");
+connect("offset", "offsetNum");
+
+$("shape").addEventListener("change", update);
+$("duty").addEventListener("input", update);
+
+$("output").addEventListener("click", () => {
+  enabled = !enabled;
+  $("output").textContent = enabled ? "OUTPUT: ON" : "OUTPUT: OFF";
+  $("output").className = enabled ? "on" : "off";
+  update();
+});
+
+$("reset").addEventListener("click", () => {
+  $("shape").value = "sine";
+  $("freq").value = $("freqNum").value = 1000;
+  $("amp").value = $("ampNum").value = 2;
+  $("offset").value = $("offsetNum").value = 0;
+  $("duty").value = 25;
+  enabled = true;
+  $("output").textContent = "OUTPUT: ON";
+  $("output").className = "on";
+  update();
+});
+
+update();
+</script>
+</body>
+</html>
